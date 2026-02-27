@@ -1,0 +1,20 @@
+{
+  "name": "harada-mcp-server",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "MCP server exposing Harada Method API actions to AI agents.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
