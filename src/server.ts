@@ -2,8 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod/v4';
 
-const DEFAULT_API_URL = process.env.HARADA_API_URL || 'https://harada.jacobstokes.com';
-
 interface HaradaResponse<T> {
   success: boolean;
   data: T;
@@ -14,14 +12,19 @@ async function haradaRequest<T>(
   endpoint: string,
   options: RequestInit = {},
   apiKey?: string,
-  apiUrl: string = DEFAULT_API_URL
+  apiUrl?: string
 ) {
   const key = apiKey || process.env.HARADA_API_KEY;
   if (!key) {
     throw new Error('Set HARADA_API_KEY env var or pass apiKey in the tool input.');
   }
 
-  const url = `${apiUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const baseUrl = apiUrl || process.env.HARADA_API_URL;
+  if (!baseUrl) {
+    throw new Error('Set HARADA_API_URL env var or pass apiUrl in the tool input.');
+  }
+
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -70,7 +73,7 @@ mcpServer.registerTool('get_summary', {
   if (includeLogs) params.set('include_logs', 'true');
   if (includeGuestbook) params.set('include_guestbook', 'true');
   const path = `/api/user/summary${params.size ? `?${params.toString()}` : ''}`;
-  const data = await haradaRequest(path, {}, apiKey, apiUrl || DEFAULT_API_URL);
+  const data = await haradaRequest(path, {}, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -82,7 +85,7 @@ mcpServer.registerTool('list_goals', {
     apiUrl: z.string().optional(),
   }
 }, async ({ apiKey, apiUrl }) => {
-  const data = await haradaRequest('/api/goals', {}, apiKey, apiUrl || DEFAULT_API_URL);
+  const data = await haradaRequest('/api/goals', {}, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -100,7 +103,7 @@ mcpServer.registerTool('create_goal', {
   const data = await haradaRequest('/api/goals', {
     method: 'POST',
     body: JSON.stringify(body),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -120,7 +123,7 @@ mcpServer.registerTool('create_subgoal', {
   const data = await haradaRequest(`/api/goals/${goalId}/subgoals`, {
     method: 'POST',
     body: JSON.stringify(body),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -142,7 +145,7 @@ mcpServer.registerTool('create_action', {
   const data = await haradaRequest(`/api/subgoals/${subGoalId}/actions`, {
     method: 'POST',
     body: JSON.stringify(body),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -173,7 +176,7 @@ mcpServer.registerTool('log_action_activity', {
   const data = await haradaRequest(`/api/logs/action/${actionId}`, {
     method: 'POST',
     body: JSON.stringify(body),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -198,7 +201,7 @@ mcpServer.registerTool('post_guestbook_entry', {
   const data = await haradaRequest('/api/guestbook', {
     method: 'POST',
     body: JSON.stringify(body),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -215,7 +218,7 @@ mcpServer.registerTool('reorder_subgoal', {
   const data = await haradaRequest(`/api/subgoals/${subGoalId}/reorder`, {
     method: 'POST',
     body: JSON.stringify({ targetPosition }),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
@@ -232,7 +235,7 @@ mcpServer.registerTool('reorder_action', {
   const data = await haradaRequest(`/api/actions/${actionId}/reorder`, {
     method: 'POST',
     body: JSON.stringify({ targetPosition }),
-  }, apiKey, apiUrl || DEFAULT_API_URL);
+  }, apiKey, apiUrl);
   return asTextContent(data);
 });
 
