@@ -5,9 +5,10 @@ Model Context Protocol server that wraps the Harada Method API so Claude Desktop
 ## Quick start
 
 ```bash
-cd mcp/harada-mcp
+git clone https://github.com/Jacob-Stokes/xharada-mcp.git
+cd xharada-mcp
 npm install
-npm run dev # or npm run start after tsc build
+npm run build
 ```
 
 The server expects:
@@ -33,21 +34,28 @@ You can also override `apiKey`/`apiUrl` per tool invocation.
 
 Feel free to extend `src/server.ts` with more REST calls (delete/update, guestbook reads, etc.).
 
-## Claude Desktop config snippet
+## Claude Desktop config
+
+Add this to your Claude Desktop config file (location varies by OS):
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "harada": {
-      "command": "npx",
-      "args": ["tsx", "/Users/jacob/harada/mcp/harada-mcp/src/server.ts"],
+      "command": "node",
+      "args": ["/FULL/PATH/TO/xharada-mcp/dist/server.js"],
       "env": {
-        "HARADA_API_KEY": "YOUR_KEY",
+        "HARADA_API_KEY": "YOUR_KEY_HERE",
         "HARADA_API_URL": "https://harada.jacobstokes.com"
       }
     }
   }
 }
 ```
+
+Replace `/FULL/PATH/TO/xharada-mcp/` with the actual path where you cloned the repository.
 
 Once wired up, Claude can call tools like `create_goal` followed by `create_subgoal`/`create_action` to build entire Harada grids directly from conversations, without needing outbound internet access.
