@@ -27,12 +27,13 @@ You can also override `apiKey`/`apiUrl` per tool invocation.
 | `create_goal` | Create a new primary goal |
 | `create_subgoal` | Add a sub-goal under a goal (optionally set slot) |
 | `create_action` | Add an action to a sub-goal |
+| `bulk_import_goals` | Import complete goal trees (goals + sub-goals + actions + logs) in one operation |
 | `log_action_activity` | POST `/api/logs/action/:id` entries (progress, note, etc.) |
 | `post_guestbook_entry` | Leave user/goal/subgoal/action comments |
 | `reorder_subgoal` | Move a sub-goal into a new slot |
 | `reorder_action` | Move an action inside its 8-grid |
 
-Feel free to extend `src/server.ts` with more REST calls (delete/update, guestbook reads, etc.).
+The `bulk_import_goals` tool is much more efficient than creating goals incrementally. Use it when you want to create entire Harada grids (1 goal → 8 sub-goals → 64 actions) in a single API call.
 
 ## Claude Desktop config
 

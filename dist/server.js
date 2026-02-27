@@ -220,6 +220,52 @@ mcpServer.registerTool('reorder_action', {
     }, apiKey, apiUrl);
     return asTextContent(data);
 });
+// Bulk import goals
+mcpServer.registerTool('bulk_import_goals', {
+    description: 'Import one or more complete goal trees (with sub-goals, actions, and logs) in a single operation. Much more efficient than creating goals one-by-one.',
+    inputSchema: {
+        goals: z.array(z.object({
+            title: z.string().describe('Goal title'),
+            description: z.string().optional().describe('Goal description'),
+            target_date: z.string().optional().describe('Target completion date (ISO format)'),
+            status: z.enum(['active', 'completed', 'archived']).optional().describe('Goal status'),
+            subGoals: z.array(z.object({
+                position: z.number().min(1).max(8).describe('Position in grid (1-8)'),
+                title: z.string().describe('Sub-goal title'),
+                description: z.string().optional().describe('Sub-goal description'),
+                actions: z.array(z.object({
+                    position: z.number().min(1).max(8).describe('Position in grid (1-8)'),
+                    title: z.string().describe('Action title'),
+                    description: z.string().optional().describe('Action description'),
+                    completed: z.boolean().optional().describe('Whether action is completed'),
+                    completed_at: z.string().optional().describe('Completion date (ISO format)'),
+                    due_date: z.string().optional().describe('Due date (ISO format)'),
+                    logs: z.array(z.object({
+                        log_type: z.enum(['note', 'progress', 'completion', 'media', 'link']).describe('Type of log entry'),
+                        content: z.string().describe('Log content'),
+                        log_date: z.string().optional().describe('Log date (ISO format)'),
+                        duration_minutes: z.number().optional().describe('Duration in minutes'),
+                        metric_value: z.number().optional().describe('Quantifiable metric'),
+                        metric_unit: z.string().optional().describe('Unit for metric'),
+                        mood: z.enum(['motivated', 'challenged', 'accomplished', 'frustrated', 'neutral']).optional(),
+                        tags: z.string().optional().describe('Comma-separated tags'),
+                        media_url: z.string().optional().describe('Media URL'),
+                        media_type: z.string().optional().describe('Media type'),
+                        external_link: z.string().optional().describe('External link')
+                    })).optional().describe('Activity logs for this action')
+                })).optional().describe('Actions for this sub-goal (up to 8)')
+            })).optional().describe('Sub-goals for this goal (up to 8)')
+        })).describe('Array of goals to import'),
+        apiKey: z.string().optional(),
+        apiUrl: z.string().optional(),
+    }
+}, async ({ goals, apiKey, apiUrl }) => {
+    const data = await haradaRequest('/api/goals/import', {
+        method: 'POST',
+        body: JSON.stringify({ goals }),
+    }, apiKey, apiUrl);
+    return asTextContent(data);
+});
 async function main() {
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
