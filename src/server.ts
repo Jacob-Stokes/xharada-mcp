@@ -57,7 +57,19 @@ function asTextContent(obj: unknown) {
 
 const mcpServer = new McpServer({ name: 'harada-mcp', version: '0.1.0' });
 
-// Get user summary
+// Agent landing page — START HERE
+mcpServer.registerTool('get_harada_overview', {
+  description: 'START HERE. Fetches the full Harada landing page: who the user is, their goals, sub-goals, actions, guidance for agents, and API info. Call this first whenever someone says "look at my Harada" or you need to understand their goal structure.',
+  inputSchema: {
+    apiKey: z.string().optional().describe('Override HARADA_API_KEY env var for this call.'),
+    apiUrl: z.string().optional().describe('Override HARADA_API_URL env var.'),
+  }
+}, async ({ apiKey, apiUrl }) => {
+  const data = await haradaRequest('/api/agents/brief', {}, apiKey, apiUrl);
+  return asTextContent(data);
+});
+
+// Get user summary (detailed tree)
 mcpServer.registerTool('get_summary', {
   description: 'Fetch the Harada user summary tree (goal → sub-goal → action).',
   inputSchema: {
@@ -89,17 +101,32 @@ mcpServer.registerTool('list_goals', {
   return asTextContent(data);
 });
 
-// Create goal
-mcpServer.registerTool('create_goal', {
-  description: 'Create a new primary goal.',
+// Create or update goal
+mcpServer.registerTool('upsert_goal', {
+  description: 'Create or update a primary goal. Omit goalId to create a new goal; provide goalId to update an existing one (title, description, status, target_date).',
   inputSchema: {
+    goalId: z.string().optional().describe('Goal ID — if provided, updates the existing goal instead of creating a new one.'),
     title: z.string().describe('Goal title'),
     description: z.string().optional().describe('Goal description'),
+    status: z.enum(['active', 'completed', 'archived']).optional().describe('Goal status (for updates)'),
+    target_date: z.string().optional().describe('Target completion date (ISO format)'),
     apiKey: z.string().optional(),
     apiUrl: z.string().optional(),
   }
-}, async ({ title, description, apiKey, apiUrl }) => {
-  const body = { title, description };
+}, async ({ goalId, title, description, status, target_date, apiKey, apiUrl }) => {
+  const body: Record<string, unknown> = { title };
+  if (description !== undefined) body.description = description;
+  if (status) body.status = status;
+  if (target_date) body.target_date = target_date;
+
+  if (goalId) {
+    const data = await haradaRequest(`/api/goals/${goalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, apiKey, apiUrl);
+    return asTextContent(data);
+  }
+
   const data = await haradaRequest('/api/goals', {
     method: 'POST',
     body: JSON.stringify(body),
@@ -107,19 +134,34 @@ mcpServer.registerTool('create_goal', {
   return asTextContent(data);
 });
 
-// Create subgoal
-mcpServer.registerTool('create_subgoal', {
-  description: 'Create a sub-goal under a primary goal.',
+// Create or update subgoal
+mcpServer.registerTool('upsert_subgoal', {
+  description: 'Create or update a sub-goal. Omit subGoalId to create (requires goalId); provide subGoalId to update an existing one (title, description, position).',
   inputSchema: {
-    goalId: z.string().describe('Primary goal ID'),
+    subGoalId: z.string().optional().describe('Sub-goal ID — if provided, updates the existing sub-goal instead of creating a new one.'),
+    goalId: z.string().optional().describe('Primary goal ID (required for create, not needed for update)'),
     title: z.string().describe('Sub-goal title'),
+    description: z.string().optional().describe('Sub-goal description'),
     position: z.number().optional().describe('0-7 slot index.'),
     apiKey: z.string().optional(),
     apiUrl: z.string().optional(),
   }
-}, async ({ goalId, title, position, apiKey, apiUrl }) => {
+}, async ({ subGoalId, goalId, title, description, position, apiKey, apiUrl }) => {
   const body: Record<string, unknown> = { title };
+  if (description !== undefined) body.description = description;
   if (typeof position === 'number') body.position = position;
+
+  if (subGoalId) {
+    const data = await haradaRequest(`/api/subgoals/${subGoalId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, apiKey, apiUrl);
+    return asTextContent(data);
+  }
+
+  if (!goalId) {
+    throw new Error('goalId is required when creating a new sub-goal.');
+  }
   const data = await haradaRequest(`/api/goals/${goalId}/subgoals`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -127,21 +169,48 @@ mcpServer.registerTool('create_subgoal', {
   return asTextContent(data);
 });
 
-// Create action
-mcpServer.registerTool('create_action', {
-  description: 'Create an action item under a sub-goal.',
+// Create or update action
+mcpServer.registerTool('upsert_action', {
+  description: 'Create or update an action. Omit actionId to create (requires subGoalId); provide actionId to update an existing one (title, description, position, due_date). Set completed to toggle completion.',
   inputSchema: {
-    subGoalId: z.string().describe('Sub-goal ID'),
+    actionId: z.string().optional().describe('Action ID — if provided, updates the existing action instead of creating a new one.'),
+    subGoalId: z.string().optional().describe('Sub-goal ID (required for create, not needed for update)'),
     title: z.string().describe('Action title'),
     description: z.string().optional().describe('Action description'),
     position: z.number().optional().describe('0-7 slot index'),
+    due_date: z.string().optional().describe('Due date (ISO format)'),
+    completed: z.boolean().optional().describe('Set to true/false to toggle completion status (requires actionId)'),
     apiKey: z.string().optional(),
     apiUrl: z.string().optional(),
   }
-}, async ({ subGoalId, title, description, position, apiKey, apiUrl }) => {
+}, async ({ actionId, subGoalId, title, description, position, due_date, completed, apiKey, apiUrl }) => {
+  if (actionId) {
+    // Toggle completion if requested
+    if (typeof completed === 'boolean') {
+      await haradaRequest(`/api/actions/${actionId}/complete`, {
+        method: 'PATCH',
+      }, apiKey, apiUrl);
+    }
+
+    const body: Record<string, unknown> = { title };
+    if (description !== undefined) body.description = description;
+    if (typeof position === 'number') body.position = position;
+    if (due_date !== undefined) body.due_date = due_date;
+
+    const data = await haradaRequest(`/api/actions/${actionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, apiKey, apiUrl);
+    return asTextContent(data);
+  }
+
+  if (!subGoalId) {
+    throw new Error('subGoalId is required when creating a new action.');
+  }
   const body: Record<string, unknown> = { title };
   if (description) body.description = description;
   if (typeof position === 'number') body.position = position;
+  if (due_date) body.due_date = due_date;
   const data = await haradaRequest(`/api/subgoals/${subGoalId}/actions`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -149,11 +218,12 @@ mcpServer.registerTool('create_action', {
   return asTextContent(data);
 });
 
-// Log activity
-mcpServer.registerTool('log_action_activity', {
-  description: 'Create an activity log entry for an action.',
+// Create or update activity log
+mcpServer.registerTool('upsert_action_log', {
+  description: 'Create or update an activity log. Omit logId to create (requires actionId); provide logId to update an existing log entry.',
   inputSchema: {
-    actionId: z.string().describe('Action ID'),
+    logId: z.string().optional().describe('Log ID — if provided, updates the existing log instead of creating a new one.'),
+    actionId: z.string().optional().describe('Action ID (required for create, not needed for update)'),
     logType: z.enum(['note', 'progress', 'completion', 'media', 'link']).describe('Type of log entry'),
     content: z.string().describe('Log content'),
     logDate: z.string().optional().describe('ISO date (defaults to now)'),
@@ -163,7 +233,7 @@ mcpServer.registerTool('log_action_activity', {
     apiKey: z.string().optional(),
     apiUrl: z.string().optional(),
   }
-}, async ({ actionId, logType, content, logDate, metricValue, metricUnit, mood, apiKey, apiUrl }) => {
+}, async ({ logId, actionId, logType, content, logDate, metricValue, metricUnit, mood, apiKey, apiUrl }) => {
   const body: Record<string, unknown> = {
     log_type: logType,
     content,
@@ -173,6 +243,17 @@ mcpServer.registerTool('log_action_activity', {
   if (metricUnit) body.metric_unit = metricUnit;
   if (mood) body.mood = mood;
 
+  if (logId) {
+    const data = await haradaRequest(`/api/logs/${logId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, apiKey, apiUrl);
+    return asTextContent(data);
+  }
+
+  if (!actionId) {
+    throw new Error('actionId is required when creating a new log entry.');
+  }
   const data = await haradaRequest(`/api/logs/action/${actionId}`, {
     method: 'POST',
     body: JSON.stringify(body),
