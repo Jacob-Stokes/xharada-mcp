@@ -22,16 +22,19 @@ You can also override `apiKey`/`apiUrl` per tool invocation.
 
 | Tool | Purpose |
 | --- | --- |
-| `get_summary` | Fetch `/api/user/summary` with optional level/log/guestbook flags |
-| `list_goals` | List primary goals |
-| `create_goal` | Create a new primary goal |
-| `create_subgoal` | Add a sub-goal under a goal (optionally set slot) |
-| `create_action` | Add an action to a sub-goal |
+| `get_harada_overview` | **START HERE.** Fetches the full landing page: goals, sub-goals, actions, guidance, and API info |
+| `get_summary` | Fetch the user summary tree with optional detail level, logs, and guestbook flags |
+| `list_goals` | List all primary goals |
+| `upsert_goal` | Create or update a primary goal (provide `goalId` to update) |
+| `upsert_subgoal` | Create or update a sub-goal (provide `subGoalId` to update) |
+| `upsert_action` | Create or update an action (provide `actionId` to update, `completed` to toggle) |
+| `upsert_action_log` | Create or update an activity log entry (provide `logId` to update) |
 | `bulk_import_goals` | Import complete goal trees (goals + sub-goals + actions + logs) in one operation |
-| `log_action_activity` | POST `/api/logs/action/:id` entries (progress, note, etc.) |
-| `post_guestbook_entry` | Leave user/goal/subgoal/action comments |
-| `reorder_subgoal` | Move a sub-goal into a new slot |
-| `reorder_action` | Move an action inside its 8-grid |
+| `post_guestbook_entry` | Leave user/goal/subgoal/action encouragement notes |
+| `reorder_subgoal` | Move a sub-goal into a new slot (0-7) |
+| `reorder_action` | Move an action inside its 8-grid (0-7) |
+
+All `upsert_*` tools follow the same pattern: omit the ID to create, provide it to update.
 
 The `bulk_import_goals` tool is much more efficient than creating goals incrementally. Use it when you want to create entire Harada grids (1 goal → 8 sub-goals → 64 actions) in a single API call.
 
@@ -59,4 +62,4 @@ Add this to your Claude Desktop config file (location varies by OS):
 
 Replace `/FULL/PATH/TO/xharada-mcp/` with the actual path where you cloned the repository.
 
-Once wired up, Claude can call tools like `create_goal` followed by `create_subgoal`/`create_action` to build entire Harada grids directly from conversations, without needing outbound internet access.
+Once wired up, call `get_harada_overview` first to understand the goal structure, then use the `upsert_*` tools to create or modify goals, sub-goals, and actions directly from conversations.
