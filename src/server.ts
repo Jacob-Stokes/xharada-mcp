@@ -367,6 +367,34 @@ mcpServer.registerTool('bulk_import_goals', {
   return asTextContent(data);
 });
 
+// Delete any resource
+const deleteEndpoints: Record<string, string> = {
+  goal: '/api/goals',
+  subgoal: '/api/subgoals',
+  action: '/api/actions',
+  log: '/api/logs',
+  guestbook: '/api/guestbook',
+};
+
+mcpServer.registerTool('delete_resource', {
+  description: 'Delete a resource by type and ID. Supported types: goal, subgoal, action, log, guestbook.',
+  inputSchema: {
+    resourceType: z.enum(['goal', 'subgoal', 'action', 'log', 'guestbook']).describe('Type of resource to delete'),
+    resourceId: z.string().describe('ID of the resource to delete'),
+    apiKey: z.string().optional(),
+    apiUrl: z.string().optional(),
+  }
+}, async ({ resourceType, resourceId, apiKey, apiUrl }) => {
+  const basePath = deleteEndpoints[resourceType];
+  if (!basePath) {
+    throw new Error(`Unknown resource type: ${resourceType}`);
+  }
+  const data = await haradaRequest(`${basePath}/${resourceId}`, {
+    method: 'DELETE',
+  }, apiKey, apiUrl);
+  return asTextContent(data);
+});
+
 async function main() {
   const transport = new StdioServerTransport();
   await mcpServer.connect(transport);

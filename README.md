@@ -33,6 +33,7 @@ You can also override `apiKey`/`apiUrl` per tool invocation.
 | `post_guestbook_entry` | Leave user/goal/subgoal/action encouragement notes |
 | `reorder_subgoal` | Move a sub-goal into a new slot (0-7) |
 | `reorder_action` | Move an action inside its 8-grid (0-7) |
+| `delete_resource` | Delete any resource by type and ID (goal, subgoal, action, log, guestbook) |
 
 All `upsert_*` tools follow the same pattern: omit the ID to create, provide it to update.
 
